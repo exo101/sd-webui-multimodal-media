@@ -21,6 +21,23 @@
 | `sd-webui-forge-aki`|`models`|`index-tts2`| Index-TTS语音合成模型目录 |
 | `C:`|`ffmpeg\`| 语音与视频合成依赖文件 |
 
+语音合成
+
+<img width="1792" height="892" alt="QQ20260123-173638" src="https://github.com/user-attachments/assets/676af2e8-0f54-4162-8ac2-94536cb1d3f9" />
+
+数字人生成
+
+<img width="1789" height="756" alt="QQ20260123-173659" src="https://github.com/user-attachments/assets/e4144be8-b530-48b0-b550-68db807b656c" />
+
+视频关键帧提取
+
+<img width="1802" height="807" alt="QQ20260123-173712" src="https://github.com/user-attachments/assets/ca4a5849-3c62-46fa-beb7-aa36ae309b85" />
+
+视频生成wan系列
+
+<img width="1774" height="796" alt="QQ20260123-173721" src="https://github.com/user-attachments/assets/e1c812d6-0163-41fa-8131-994862c82e30" />
+
+
 ## 使用方式
 
 安装完成后，在 WebUI 中会出现“多媒体处理”标签页，可在其中使用上述所有功能。
