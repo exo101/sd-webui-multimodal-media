@@ -19,11 +19,30 @@
 |---------------------|--------|-----------|-----------|
 | `sd-webui-forge-aki`|`models`|`LatentSync`| 数字人视频生成模型目录 |
 | `sd-webui-forge-aki`|`models`|`index-tts2`| Index-TTS语音合成模型目录 |
+| `sd-webui-forge-aki`|`models`|`qwen3-tts`| qwen3语音合成模型目录 |
+| `sd-webui-forge-aki`|`models`|`whisper-tiny`| 语音识别模型目录 |
+
 | `C:`|`ffmpeg\`| 语音与视频合成依赖文件 |
 
 语音合成
+Qwen3-TTS 语音合成
+三种模型类型
+🎯 Base - 基础模型
+功能特点：基础模型，支持从用户提供的 3 秒音频快速克隆音色
+适用场景：可用于微调（FT）其他模型，通用语音合成
+推荐度：⭐⭐⭐⭐⭐（入门首选）
+🎨 CustomVoice - 自定义音色
+功能特点：通过用户指令对目标音色进行风格控制
+支持音色：9 种优质音色，涵盖不同性别、年龄、语言和方言的组合
+适用场景：需要特定音色特征的定制化场景
+推荐度：⭐⭐⭐⭐（进阶使用）
+🎭 VoiceDesign - 声音设计
+功能特点：根据用户提供的描述进行精细的音色设计
+适用场景：需要高度定制化、创意性的语音设计场景
+推荐度：⭐⭐⭐⭐⭐（专业级控制）
+多语言支持：所有模型均支持中文、英文、日文、韩文、德文、法文、俄文、葡萄牙文、西班牙文、意大利文等 10+ 种语言
+<img width="1821" height="678" alt="QQ20260322-022315" src="https://github.com/user-attachments/assets/5eecbcfe-80b3-4369-9ca0-e8b91f1dce0a" />
 
-<img width="1792" height="892" alt="QQ20260123-173638" src="https://github.com/user-attachments/assets/676af2e8-0f54-4162-8ac2-94536cb1d3f9" />
 
 数字人生成
 
