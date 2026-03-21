@@ -5,7 +5,7 @@
 
 ## 功能说明
 
-1. **Index-TTS 语音合成** —— 高质量语音克隆与文本转语音
+1. **qwen3-tts 语音合成** —— 高质量语音克隆与文本描述目标音色进行风格控制
 2. **数字人唇形同步生成** —— 生成唇形与语音同步的视频
 3. **视频帧提取** —— 从视频中提取关键帧
 4. **wan 视频生成 API** —— 通过 API 使用模型生成视频
@@ -18,7 +18,6 @@
 | 整合包目录 | 模型目录 | 子目录 |说明 |
 |---------------------|--------|-----------|-----------|
 | `sd-webui-forge-aki`|`models`|`LatentSync`| 数字人视频生成模型目录 |
-| `sd-webui-forge-aki`|`models`|`index-tts2`| Index-TTS语音合成模型目录 |
 | `sd-webui-forge-aki`|`models`|`qwen3-tts`| qwen3语音合成模型目录 |
 | `sd-webui-forge-aki`|`models`|`whisper-tiny`| 语音识别模型目录 |
 
