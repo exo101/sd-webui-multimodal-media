@@ -1,4 +1,7 @@
 # 多模态媒体（音频/视频）扩展
+启动器扩展界面更新sd-webui-multimodal-media插件
+<img width="1301" height="796" alt="QQ20260324-191943" src="https://github.com/user-attachments/assets/16a66306-cdf3-41e5-bf73-4089f4d08046" />
+
 
 本扩展用于处理音频与视频相关功能，包括：
 这些功能已从原 sd-webui-MultiModal 扩展中拆分出来，以降低内存占用。
