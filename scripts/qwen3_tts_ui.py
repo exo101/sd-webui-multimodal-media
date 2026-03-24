@@ -6,6 +6,8 @@ import json
 import time
 from pathlib import Path
 import warnings
+import shutil
+import datetime
 
 # 忽略所有与音频处理相关的警告
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -24,6 +26,161 @@ os.makedirs(config_dir, exist_ok=True)
 
 # 全局模型实例
 qwen_tts_model = None
+
+def send_audio_to_storyboard(audio_path, description=""):
+    """
+    将生成的音频发送到分镜助手
+    
+    Args:
+        audio_path: 音频文件路径
+        description: 分镜描述（可选）
+    
+    Returns:
+        dict: {
+            'success': bool,  # 成功标志
+            'message': str,   # 消息
+            'index': int,     # 分镜索引（从 0 开始）
+            'total_count': int,  # 总分镜数
+            'target_page': int   # 应该在第几页显示（最后一页）
+        }
+    """
+    try:
+        # 获取分镜数据目录 - 使用多种方法确保路径正确
+        current_file = Path(__file__).resolve()
+        
+        # 方法 1: 通过 workspace 根目录构建
+        workspace_root = current_file.parent.parent.parent
+        data_dir = workspace_root / "sd-webui-MultiModal" / "scripts" / "storyboard_data"
+        
+        # 调试信息
+        print(f"\n[调试] 当前文件：{current_file}")
+        print(f"[调试] workspace_root: {workspace_root}")
+        print(f"[调试] workspace_root 存在：{workspace_root.exists()}")
+        print(f"[调试] 目标数据目录 (方法 1): {data_dir}")
+        
+        # 验证关键目录是否存在
+        multimodal_dir = workspace_root / "sd-webui-MultiModal"
+        scripts_dir = multimodal_dir / "scripts"
+        
+        print(f"[调试] MultiModal 目录：{multimodal_dir}, 存在：{multimodal_dir.exists()}")
+        print(f"[调试] scripts 目录：{scripts_dir}, 存在：{scripts_dir.exists()}")
+        
+        if not multimodal_dir.exists():
+            raise FileNotFoundError(f"❌ sd-webui-MultiModal 扩展目录不存在：{multimodal_dir}\n请确保已安装该扩展")
+        
+        if not scripts_dir.exists():
+            raise FileNotFoundError(f"❌ scripts 目录不存在：{scripts_dir}")
+        
+        # 使用 as_posix() 确保路径分隔符统一，然后创建目录
+        data_dir_str = str(data_dir)
+        print(f"[调试] 目标目录字符串：{data_dir_str}")
+        
+        # 确保目录存在（使用 parents=True 递归创建所有父目录）
+        data_dir.mkdir(parents=True, exist_ok=True)
+        print(f"[调试] ✅ 数据目录已准备就绪：{data_dir}\n")
+        
+        storyboard_file = data_dir / "storyboard.json"
+        
+        # 加载分镜数据
+        def load_storyboard_data():
+            if storyboard_file.exists():
+                try:
+                    with open(storyboard_file, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                        if not content.strip():
+                            return []
+                        return json.loads(content)
+                except Exception as e:
+                    print(f"⚠️ 加载分镜数据失败：{e}")
+                    return []
+            return []
+        
+        # 保存分镜数据
+        def save_storyboard_data(data):
+            try:
+                with open(storyboard_file, 'w', encoding='utf-8') as f:
+                    json.dump(data, f, ensure_ascii=False, indent=2)
+                return True
+            except Exception as e:
+                print(f"❌ 保存分镜数据失败：{e}")
+                return False
+        
+        # 复制音频文件到分镜临时目录
+        def process_audio_for_storyboard(audio_path):
+            """将音频复制到分镜临时目录"""
+            try:
+                if audio_path is None or not os.path.exists(audio_path):
+                    return None
+                
+                # 复制到临时目录
+                output_dir = data_dir / "temp_audios"
+                output_dir.mkdir(exist_ok=True)
+                
+                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                output_path = output_dir / f"storyboard_audio_{timestamp}.wav"
+                
+                shutil.copy2(audio_path, output_path)
+                return str(output_path)
+            
+            except Exception as e:
+                print(f"⚠️ 处理音频失败：{e}")
+                import traceback
+                traceback.print_exc()
+                return None
+        
+        # 处理音频
+        processed_path = process_audio_for_storyboard(audio_path)
+        if not processed_path:
+            return "❌ 音频处理失败：无法复制音频文件"
+        
+        # 双重验证：确保 processed_path 是有效的文件路径
+        if not isinstance(processed_path, str) or not os.path.isfile(processed_path):
+            print(f"❌ 路径验证失败：processed_path={processed_path}, 类型={type(processed_path)}")
+            return "❌ 音频处理失败：生成的路径无效"
+        
+        # 加载现有数据
+        storyboard_data = load_storyboard_data()
+        
+        # 计算新的分镜索引
+        new_index = len(storyboard_data)
+        
+        # 添加新的分镜记录（包含音频）
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        new_storyboard = {
+            "id": new_index,
+            "image_path": None,  # 没有图片
+            "audio_path": processed_path,  # 新增音频路径
+            "aspect_ratio": "16:9 (宽屏)",
+            "description": description if description else "",
+            "timestamp": timestamp
+        }
+        
+        storyboard_data.append(new_storyboard)
+        
+        # 保存数据
+        success = save_storyboard_data(storyboard_data)
+        
+        # 计算分页信息
+        STORYBOARDS_PER_PAGE = 9  # 每页 9 个宫格
+        total_count = len(storyboard_data)
+        target_page = max(1, (total_count + STORYBOARDS_PER_PAGE - 1) // STORYBOARDS_PER_PAGE)
+        
+        if success:
+            return f"✅ 音频已添加到分镜 #{new_index + 1}（第 {target_page} 页）"
+        else:
+            return "❌ 添加失败：无法保存分镜数据"
+    
+    except Exception as e:
+        print(f"❌ 发送到分镜失败：{e}")
+        import traceback
+        traceback.print_exc()
+        return {
+            'success': False,
+            'message': f"❌ 错误：{str(e)}",
+            'index': -1,
+            'total_count': 0,
+            'target_page': 1
+        }
 
 def open_output_directory(output_dir_path):
     """
@@ -720,11 +877,20 @@ def create_qwen3_tts_ui():
         # 结果展示
         with gr.Row():
             audio_output = gr.Audio(label="生成的音频", type="filepath")
-            status_info = gr.Textbox(
-                label="操作状态",
-                lines=2,
-                interactive=False
-            )
+            with gr.Column():
+                status_info = gr.Textbox(
+                    label="操作状态",
+                    lines=2,
+                    interactive=False
+                )
+                
+                # 发送到分镜按钮
+                send_to_storyboard_btn = gr.Button(
+                    "📤 发送到分镜",
+                    variant="secondary",
+                    size="md",
+                    visible=True
+                )
         
         # 音色预设
         with gr.Accordion("💾 音色预设管理", open=False):
@@ -864,27 +1030,42 @@ def create_qwen3_tts_ui():
             outputs=[status_info]
         )
         
+        # 发送到分镜按钮事件
+        send_to_storyboard_btn.click(
+            fn=lambda audio_path: send_audio_to_storyboard(
+                audio_path, 
+                description="Qwen3-TTS 生成的音频"
+            ),
+            inputs=[audio_output],
+            outputs=[status_info]
+        )
+        
         # 预设功能
         def update_preset_list():
             presets = load_voice_presets()
-            return gr.update(choices=presets)
+            # 添加"无"选项，用于清空当前选择
+            presets_with_none = ["【无】清空选择"] + presets
+            return gr.update(choices=presets_with_none, value=None)
         
         def on_preset_selected(preset_name):
-            if preset_name:
-                data = load_preset_data(preset_name)
-                return (
-                    data.get("speaker", "Vivian"),
-                    data.get("instruct", ""),
-                    data.get("language", "Chinese"),
-                    f"已加载预设：{preset_name}"
-                )
-            return "Vivian", "", "Chinese", ""
+            # 如果选择了"无"或空值，清空所有配置
+            if not preset_name or preset_name == "【无】清空选择":
+                return "Vivian", "", "Chinese", "✅ 已清空预设选择"
+            
+            # 否则加载预设数据
+            data = load_preset_data(preset_name)
+            return (
+                data.get("speaker", "Vivian"),
+                data.get("instruct", ""),
+                data.get("language", "Chinese"),
+                f"已加载预设：{preset_name}"
+            )
         
         ui.load(fn=update_preset_list, outputs=[preset_list])
         
         save_preset_btn.click(
             fn=lambda name, speaker, instruct, lang, model: save_voice_preset(
-                name, instruct, lang, model, {"speaker": speaker}
+                name, speaker, lang, model
             ),
             inputs=[preset_name_input, speaker_dropdown, custom_instruct, language, model_choice],
             outputs=[status_info]
