@@ -38,16 +38,30 @@ def setup_ffmpeg_path():
     except (subprocess.CalledProcessError, FileNotFoundError):
         pass
     
-    # 常见的FFmpeg安装路径 - 仅使用标准路径，移除特定环境路径
-    common_ffmpeg_paths = [
+    # 优先检查WebUI环境中的FFmpeg
+    webui_root = Path(__file__).parent.parent.parent.parent
+    webui_ffmpeg_paths = [
+        webui_root / "ffmpeg" / "bin",
+        webui_root / "venv" / "Scripts",  # 某些环境可能在 venv/Scripts 中
+        webui_root / "_deps" / "ffmpeg" / "bin",  # 某些构建的依赖目录
+    ]
+    
+    # 常见的系统FFmpeg安装路径（作为备选）
+    system_ffmpeg_paths = [
         "C:\\ffmpeg\\bin",
         "C:\\Program Files\\ffmpeg\\bin",
         "C:\\Program Files (x86)\\ffmpeg\\bin",
     ]
     
-    # 尝试添加常见路径
+    # 合并所有路径，优先搜索WebUI环境
+    all_ffmpeg_paths = webui_ffmpeg_paths + [Path(p) for p in system_ffmpeg_paths]
+    
+    # 尝试查找FFmpeg
     system_path = os.environ.get("PATH", "")
-    for ffmpeg_path in common_ffmpeg_paths:
+    for ffmpeg_path in all_ffmpeg_paths:
+        if isinstance(ffmpeg_path, Path):
+            ffmpeg_path = str(ffmpeg_path)
+        
         if os.path.exists(ffmpeg_path):
             ffmpeg_exe = os.path.join(ffmpeg_path, "ffmpeg.exe")
             ffprobe_exe = os.path.join(ffmpeg_path, "ffprobe.exe")
@@ -57,7 +71,16 @@ def setup_ffmpeg_path():
                     os.environ["PATH"] = ffmpeg_path + os.pathsep + system_path
                 else:
                     os.environ["PATH"] = ffmpeg_path
+                print(f"✓ 已找到FFmpeg: {ffmpeg_path}")
                 return True
+    
+    # 如果都没找到，尝试使用当前Python环境的ffmpeg-python
+    try:
+        import ffmpeg
+        # ffmpeg-python 可能自带或指向系统的 ffmpeg
+        return True
+    except ImportError:
+        pass
     
     return False
 
@@ -319,6 +342,26 @@ def create_latent_sync_ui():
                     
                     open_output_dir_btn.click(fn=open_latent_sync_output_dir, inputs=[], outputs=[])
 
+                # 模型下载说明
+                with gr.Accordion("📁 模型下载说明", open=False):
+                    gr.Markdown("""
+                    ### 模型存储位置
+                    - **LatentSync 模型**：`WebUI根目录/models/LatentSync/checkpoints`
+                    - **VAE 模型**：`WebUI根目录/models/LatentSync/checkpoints/sd-vae-ft-mse`
+                    - **InsightFace 模型**：`插件目录/LatentSync/checkpoints/auxiliary`
+                    
+                    ### 模型下载
+                    - **首次使用**：首次运行时会自动下载所需模型
+                    - **下载来源**：所有模型均已包含在整合包中，如需更新请从群主网盘中获取
+                    - **模型大小**：约 2-3GB，请确保磁盘空间充足
+                    
+                    ### 手动下载
+                    如需手动下载模型，请将模型文件放入对应目录：
+                    - LatentSync 模型：`latentsync_unet.pt`
+                    - VAE 模型：标准 SD VAE 模型
+                    - InsightFace 模型：人脸检测相关模型
+                    """)
+                
                 # 示例
                 gr.Examples(
                     examples=[
