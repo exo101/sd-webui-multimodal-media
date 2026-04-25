@@ -182,29 +182,35 @@ def send_audio_to_storyboard(audio_path, description=""):
             'target_page': 1
         }
 
-def open_output_directory(output_dir_path):
+def open_output_directory(output_dir_path=None):
     """
     打开输出目录
+    注意：为了避免客户端缓存污染问题，始终使用动态计算的路径
     """
     try:
         import subprocess
         import sys
         
+        # 关键修复：不使用传入的缓存路径，而是动态计算当前正确的输出目录
+        # 这样可以避免浏览器localStorage中存储的旧路径（如v2版本的路径）
+        from modules.paths_internal import default_output_dir
+        current_output_dir = os.path.join(default_output_dir, "qwen3-tts")
+        
         # 确保目录存在
-        os.makedirs(output_dir_path, exist_ok=True)
+        os.makedirs(current_output_dir, exist_ok=True)
         
         # 根据操作系统打开目录
         if sys.platform == "win32":
             # Windows
-            subprocess.run(["explorer", output_dir_path], check=True)
+            subprocess.run(["explorer", current_output_dir], check=True)
         elif sys.platform == "darwin":
             # macOS
-            subprocess.run(["open", output_dir_path], check=True)
+            subprocess.run(["open", current_output_dir], check=True)
         else:
             # Linux
-            subprocess.run(["xdg-open", output_dir_path], check=True)
+            subprocess.run(["xdg-open", current_output_dir], check=True)
         
-        return f"✓ 已打开输出目录：{output_dir_path}"
+        return f"✓ 已打开输出目录：{current_output_dir}"
     except Exception as e:
         error_msg = f"打开目录失败：{str(e)}"
         print(error_msg)
@@ -850,19 +856,13 @@ def create_qwen3_tts_ui():
                 )
             
             with gr.Column(scale=1):
-                # 输出目录显示和打开按钮
+                # 输出目录打开按钮（不显示路径文本框，避免浏览器缓存问题）
                 with gr.Group():
-                    output_dir_display = gr.Textbox(
-                        label="输出目录路径",
-                        value=default_qwen_tts_output,
-                        interactive=False,
-                        info="生成的音频文件将保存在此目录"
-                    )
-                    
                     open_dir_btn = gr.Button(
                         "📁 打开输出目录",
                         variant="secondary",
-                        size="sm"
+                        size="sm",
+                        info="生成的音频文件将保存在 output/qwen3-tts 目录"
                     )
                 
                 batch_mode = gr.Checkbox(
@@ -909,6 +909,24 @@ def create_qwen3_tts_ui():
                 value=None,
                 info="选择预设将自动填充下方配置"
             )
+        
+        # 模型下载说明
+        with gr.Accordion("📁 模型下载说明", open=False):
+            gr.Markdown("""
+            ### 模型存储位置
+            - **Qwen3-TTS 模型**：`WebUI根目录/models/qwen3-tts`
+            - **Whisper 模型**：`WebUI根目录/models/whisper-tiny` 或 `WebUI根目录/models/whisper/whisper-tiny`
+            
+            ### 模型下载
+            - **首次使用**：首次生成时会自动下载所需模型
+            - **下载来源**：所有模型均已包含在整合包中，如需更新请从群主网盘中获取
+            - **模型大小**：约 3-4GB，请确保磁盘空间充足
+            
+            ### 手动下载
+            如需手动下载模型，请将模型文件放入对应目录：
+            - Qwen3-TTS 模型：从 Hugging Face 下载 `Qwen/Qwen3-TTS-12Hz-1.7B-Base` 等模型
+            - Whisper 模型：从 Hugging Face 下载 `openai/whisper-tiny` 模型
+            """)
         
         # 使用说明
         with gr.Accordion("📖 使用说明", open=False):
@@ -968,9 +986,14 @@ def create_qwen3_tts_ui():
         # 生成逻辑
         def on_generate(text, language, model_type, ref_audio, ref_text, 
                        speaker, custom_instruct, design_instruct, 
-                       output_dir, batch_mode, auto_transcribe):
+                       batch_mode, auto_transcribe):
             if not text.strip():
                 return None, "错误：请输入要合成的文本"
+            
+            # 关键修复：不使用UI组件传入的可能被缓存的output_dir路径
+            # 而是动态计算当前正确的输出目录，避免客户端缓存污染问题
+            from modules.paths_internal import default_output_dir
+            current_output_dir = os.path.join(default_output_dir, "qwen3-tts")
             
             if model_type == "Base":
                 if not ref_audio:
@@ -985,7 +1008,7 @@ def create_qwen3_tts_ui():
                     language=language,
                     ref_audio_path=ref_audio,
                     ref_text=ref_text if not auto_transcribe else "",
-                    output_dir=output_dir,
+                    output_dir=current_output_dir,  # 使用动态计算的正确路径
                     use_batch_mode=batch_mode,
                     auto_transcribe=auto_transcribe
                 )
@@ -996,7 +1019,7 @@ def create_qwen3_tts_ui():
                     language=language,
                     speaker=speaker,
                     instruct=instruct_text,
-                    output_dir=output_dir,
+                    output_dir=current_output_dir,  # 使用动态计算的正确路径
                     use_batch_mode=batch_mode
                 )
             elif model_type == "VoiceDesign":
@@ -1006,7 +1029,7 @@ def create_qwen3_tts_ui():
                     text=text,
                     language=language,
                     instruct=design_instruct.strip(),
-                    output_dir=output_dir,
+                    output_dir=current_output_dir,  # 使用动态计算的正确路径
                     use_batch_mode=batch_mode
                 )
             else:
@@ -1018,7 +1041,7 @@ def create_qwen3_tts_ui():
                 text_input, language, model_choice, 
                 ref_audio_input, ref_text_input,
                 speaker_dropdown, custom_instruct, design_instruct,
-                output_dir_display, batch_mode, auto_transcribe_checkbox
+                batch_mode, auto_transcribe_checkbox
             ],
             outputs=[audio_output, status_info]
         )
@@ -1026,7 +1049,7 @@ def create_qwen3_tts_ui():
         # 打开输出目录按钮事件
         open_dir_btn.click(
             fn=open_output_directory,
-            inputs=[output_dir_display],
+            inputs=[],
             outputs=[status_info]
         )
         
